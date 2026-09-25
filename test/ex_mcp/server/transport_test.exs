@@ -64,8 +64,9 @@ defmodule ExMCP.Server.TransportTest do
             port: 0
           )
 
+        on_exit(fn -> stop_http_listener(ExMCP.HttpPlug.HTTP, pid) end)
         assert is_pid(pid)
-        Plug.Cowboy.shutdown(pid)
+        assert is_integer(:ranch.get_port(ExMCP.HttpPlug.HTTP))
       else
         # Skip if Cowboy not available
         :skip
@@ -82,8 +83,9 @@ defmodule ExMCP.Server.TransportTest do
             port: 0
           )
 
+        on_exit(fn -> stop_http_listener(ExMCP.HttpPlug.HTTP, pid) end)
         assert is_pid(pid)
-        Plug.Cowboy.shutdown(pid)
+        assert is_integer(:ranch.get_port(ExMCP.HttpPlug.HTTP))
       else
         :skip
       end
@@ -124,8 +126,9 @@ defmodule ExMCP.Server.TransportTest do
         {:ok, pid} =
           Transport.start_http_server(TestServer, %{name: "test", version: "1.0.0"}, [], port: 0)
 
+        on_exit(fn -> stop_http_listener(ExMCP.HttpPlug.HTTP, pid) end)
         assert is_pid(pid)
-        Plug.Cowboy.shutdown(pid)
+        assert is_integer(:ranch.get_port(ExMCP.HttpPlug.HTTP))
       else
         :skip
       end
@@ -142,8 +145,9 @@ defmodule ExMCP.Server.TransportTest do
             ranch_ref: ref
           )
 
-        on_exit(fn -> Plug.Cowboy.shutdown(pid) end)
+        on_exit(fn -> stop_http_listener(ref, pid) end)
         assert is_pid(pid)
+        assert is_integer(:ranch.get_port(ref))
 
         assert {:ok, ^pid} =
                  Transport.start_http_server(TestServer, %{name: "test", version: "1.0.0"}, [],
@@ -152,6 +156,12 @@ defmodule ExMCP.Server.TransportTest do
                  )
       end
     end
+  end
+
+  defp stop_http_listener(ref, pid) do
+    monitor = Process.monitor(pid)
+    assert :ok = Plug.Cowboy.shutdown(ref)
+    assert_receive {:DOWN, ^monitor, :process, ^pid, _reason}, 1_000
   end
 
   describe "server management" do
@@ -223,8 +233,9 @@ defmodule ExMCP.Server.TransportTest do
       if match?({:module, _}, Code.ensure_loaded(Plug.Cowboy)) do
         {:ok, pid} = TestServer.start_link(transport: :http, port: 0)
 
+        on_exit(fn -> stop_http_listener(ExMCP.HttpPlug.HTTP, pid) end)
         assert is_pid(pid)
-        Plug.Cowboy.shutdown(pid)
+        assert is_integer(:ranch.get_port(ExMCP.HttpPlug.HTTP))
       else
         :skip
       end

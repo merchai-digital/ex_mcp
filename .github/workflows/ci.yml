@@ -425,7 +425,7 @@ jobs:
       MIX_DEPS_PATH: ${{ github.workspace }}/.bandit-consumer-deps
     defaults:
       run:
-        working-directory: dev/fixtures/bandit_consumer
+        working-directory: fixtures/bandit_consumer
 
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -443,6 +443,12 @@ jobs:
 
     - name: Verify consumer lock is pinned
       run: git diff --exit-code -- mix.lock
+
+    - name: Compile consumer without warnings
+      run: |
+        set -o pipefail
+        mix compile --warnings-as-errors 2>&1 | tee /tmp/exmcp-bandit-compile.log
+        ! grep -Eq '^[[:space:]]*warning:' /tmp/exmcp-bandit-compile.log
 
     - name: Test Bandit consumer and absent Cowboy graph
       run: mix test

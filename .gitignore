@@ -7,6 +7,10 @@
 # The directory Mix downloads your dependencies sources to.
 /deps/
 
+# The Bandit-only consumer is a separate Mix project.
+/fixtures/bandit_consumer/deps/
+/fixtures/bandit_consumer/_build/
+
 # Where third-party dependencies like ExDoc output generated docs.
 /doc/
 # But keep our docs folder (except auto-generated specs). The modern JSON schema is

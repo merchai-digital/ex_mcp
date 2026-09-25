@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- PlugCowboy is now an optional dependency. If your application uses the
+  standalone `ExMCP.Server.Transport.start_http_server/4` launcher or
+  `start_server(transport: :http)`, explicitly add
+  `{:plug_cowboy, "~> 2.7"}` to its dependencies before upgrading. Without it,
+  those launchers return `{:error, :cowboy_not_available}`. Applications that
+  mount `ExMCP.HttpPlug` in Bandit do not need PlugCowboy. This migration note
+  describes an unreleased local patch, not a published ExMCP version.
+
 ## [1.5.0] - 2026-09-21
 
 ### Added

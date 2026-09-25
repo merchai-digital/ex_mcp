@@ -186,8 +186,8 @@ defmodule ExMCP.Server.Transport do
     cowboy_opts = [port: port, ip: parse_host(host)]
     cowboy_opts = if ranch_ref, do: Keyword.put(cowboy_opts, :ref, ranch_ref), else: cowboy_opts
 
-    # Dynamic module lookup keeps the optional adapter out of consumers' compile-time calls.
-    cowboy = Plug.Cowboy
+    # Resolve the optional adapter at runtime so Cowboy-free consumers compile cleanly.
+    cowboy = Module.concat(["Plug", "Cowboy"])
 
     case cowboy.http(ExMCP.HttpPlug, plug_opts, cowboy_opts) do
       {:ok, pid} ->

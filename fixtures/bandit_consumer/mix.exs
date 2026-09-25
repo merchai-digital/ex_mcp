@@ -16,7 +16,7 @@ defmodule ExMCPBanditConsumer.MixProject do
 
   defp deps do
     [
-      {:ex_mcp, path: "../../.."},
+      {:ex_mcp, path: "../.."},
       {:bandit, "~> 1.5"}
     ]
   end

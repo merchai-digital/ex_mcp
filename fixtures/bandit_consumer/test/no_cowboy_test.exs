@@ -11,6 +11,13 @@ defmodule ExMCPBanditConsumer.NoCowboyTest do
              &Map.has_key?(selected, &1)
            )
 
+    selected_paths = Mix.Project.deps_paths()
+
+    refute Enum.any?(
+             [:plug_cowboy, :cowboy, :cowboy_telemetry, :cowlib, :ranch],
+             &Map.has_key?(selected_paths, &1)
+           )
+
     refute Code.ensure_loaded?(Plug.Cowboy)
     refute Transport.list_transports().http.available
 

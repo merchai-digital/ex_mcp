@@ -293,6 +293,7 @@ on the GET stream.
 
 ```elixir
 # Server — two-endpoint transport (not Streamable HTTP)
+# Add {:plug_cowboy, "~> 2.7"} to your application's dependencies for this launcher.
 {:ok, _} =
   Plug.Cowboy.http(
     ExMCP.HttpPlug,
