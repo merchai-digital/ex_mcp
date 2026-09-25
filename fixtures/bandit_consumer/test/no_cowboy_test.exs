@@ -98,6 +98,103 @@ defmodule ExMCPBanditConsumer.NoCowboyTest do
     assert body =~ "\"resultType\":\"complete\""
   end
 
+  test "oversized POST leaves the same Bandit socket usable for a following request" do
+    server =
+      start_supervised!(
+        {Bandit,
+         plug:
+           {ExMCP.HttpPlug,
+            handler: ExMCPBanditConsumer.Handler,
+            server_info: %{name: "bandit-consumer", version: "1.0.0"}},
+         ip: {127, 0, 0, 1},
+         port: 0,
+         startup_log: false}
+      )
+
+    {:ok, {_ip, port}} = ThousandIsland.listener_info(server)
+    {:ok, socket} = :gen_tcp.connect({127, 0, 0, 1}, port, [:binary, active: false], 5_000)
+    on_exit(fn -> :gen_tcp.close(socket) end)
+
+    send_post(socket, String.duplicate("x", 1_000_001), "tools/list")
+    assert {413, "Request body too large"} = receive_response(socket)
+
+    request = %{
+      "jsonrpc" => "2.0",
+      "id" => 2,
+      "method" => "tools/list",
+      "params" => %{
+        "_meta" => %{
+          "io.modelcontextprotocol/protocolVersion" => "2026-07-28",
+          "io.modelcontextprotocol/clientCapabilities" => %{}
+        }
+      }
+    }
+
+    send_post(socket, Jason.encode!(request), "tools/list")
+    assert {200, body} = receive_response(socket)
+    assert %{"result" => %{"tools" => [%{"name" => "ping"}]}} = Jason.decode!(body)
+  end
+
+  defp send_post(socket, body, method) do
+    :ok =
+      :gen_tcp.send(socket, [
+        "POST / HTTP/1.1\r\n",
+        "Host: 127.0.0.1\r\n",
+        "Connection: keep-alive\r\n",
+        "Content-Type: application/json\r\n",
+        "MCP-Protocol-Version: 2026-07-28\r\n",
+        "MCP-Method: ",
+        method,
+        "\r\n",
+        "Content-Length: ",
+        Integer.to_string(byte_size(body)),
+        "\r\n\r\n",
+        body
+      ])
+  end
+
+  defp receive_response(socket) do
+    {head, body_start} = receive_headers(socket, "")
+    [status_line | headers] = String.split(head, "\r\n")
+    ["HTTP/1.1", status | _] = String.split(status_line, " ")
+
+    length =
+      headers
+      |> Enum.find_value(fn header ->
+        case String.split(header, ":", parts: 2) do
+          [name, value] ->
+            if String.downcase(name) == "content-length",
+              do: String.to_integer(String.trim(value))
+
+          _ ->
+            nil
+        end
+      end)
+
+    remaining = length - byte_size(body_start)
+
+    tail =
+      if remaining > 0 do
+        {:ok, chunk} = :gen_tcp.recv(socket, remaining, 5_000)
+        chunk
+      else
+        ""
+      end
+
+    {String.to_integer(status), body_start <> tail}
+  end
+
+  defp receive_headers(socket, buffer) do
+    case :binary.split(buffer, "\r\n\r\n") do
+      [head, body] ->
+        {head, body}
+
+      [_incomplete] ->
+        {:ok, chunk} = :gen_tcp.recv(socket, 0, 5_000)
+        receive_headers(socket, buffer <> chunk)
+    end
+  end
+
   defp request(url, payload, headers \\ []) do
     {status, response_headers, body} = raw_request(url, payload, headers)
     {status, response_headers, Jason.decode!(body)}

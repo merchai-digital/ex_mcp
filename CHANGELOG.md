@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   mount `ExMCP.HttpPlug` in Bandit do not need PlugCowboy. This migration note
   describes an unreleased local patch, not a published ExMCP version.
 
+### Fixed
+
+- An oversized Streamable HTTP POST now returns 413 without breaking the
+  persistent connection before the next request.
+
 ## [1.5.0] - 2026-09-21
 
 ### Added

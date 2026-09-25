@@ -573,8 +573,8 @@ defmodule ExMCP.HttpPlug do
             handle_legacy_mcp_request(conn, opts)
         end
 
-      {:error, :body_too_large} ->
-        conn
+      {:error, :body_too_large, read_conn} ->
+        read_conn
         |> maybe_add_cors_headers(opts)
         |> send_resp(413, "Request body too large")
 
@@ -590,10 +590,20 @@ defmodule ExMCP.HttpPlug do
          {:ok, session_reference} <- get_or_create_session_id(conn, request) do
       do_handle_mcp_request(conn, opts, session_reference)
     else
-      {:error, :session_required} -> reject_missing_session(conn, opts)
-      {:error, :invalid_session_id} -> reject_invalid_session_id(conn, opts)
+      {:error, :body_too_large, read_conn} ->
+        read_conn
+        |> maybe_add_cors_headers(opts)
+        |> send_resp(413, "Request body too large")
+
+      {:error, :session_required} ->
+        reject_missing_session(conn, opts)
+
+      {:error, :invalid_session_id} ->
+        reject_invalid_session_id(conn, opts)
+
       # Preserve the existing parse/body error handling in do_handle_mcp_request.
-      {:error, _reason} -> do_handle_mcp_request(conn, opts, nil)
+      {:error, _reason} ->
+        do_handle_mcp_request(conn, opts, nil)
     end
   end
 
@@ -916,8 +926,8 @@ defmodule ExMCP.HttpPlug do
         |> put_resp_content_type("application/json")
         |> send_resp(400, Jason.encode!(error_response))
 
-      {:error, :body_too_large} ->
-        conn
+      {:error, :body_too_large, read_conn} ->
+        read_conn
         |> maybe_add_cors_headers(opts)
         |> send_resp(413, "Request body too large")
 
@@ -974,7 +984,7 @@ defmodule ExMCP.HttpPlug do
     if byte_size(body) <= body_limit do
       {:ok, body, conn}
     else
-      {:error, :body_too_large}
+      {:error, :body_too_large, conn}
     end
   end
 
@@ -984,7 +994,7 @@ defmodule ExMCP.HttpPlug do
     case read_body(conn, length: body_limit, read_length: body_limit) do
       {:ok, "", conn} -> parsed_json_body(conn, body_limit)
       {:ok, body, conn} -> {:ok, body, conn}
-      {:more, _partial, _conn} -> {:error, :body_too_large}
+      {:more, _partial, read_conn} -> {:error, :body_too_large, read_conn}
       {:error, reason} -> {:error, reason}
     end
   end
@@ -1017,7 +1027,7 @@ defmodule ExMCP.HttpPlug do
       if byte_size(body) <= body_limit do
         {:ok, body, conn}
       else
-        {:error, :body_too_large}
+        {:error, :body_too_large, conn}
       end
     rescue
       _exception -> {:ok, "", conn}
@@ -1364,8 +1374,8 @@ defmodule ExMCP.HttpPlug do
         |> maybe_add_cors_headers(opts)
         |> send_resp(403, "Origin not allowed")
 
-      {:error, :body_too_large} ->
-        conn
+      {:error, :body_too_large, read_conn} ->
+        read_conn
         |> maybe_add_cors_headers(opts)
         |> send_resp(413, "Request body too large")
 
