@@ -11,10 +11,17 @@ ExMCP provides seamless integration with Phoenix applications through the `ExMCP
 defp deps do
   [
     {:ex_mcp, "~> 1.0"},
+    # Use your existing Phoenix server adapter (for example, Bandit).
     # ... your other dependencies
   ]
 end
 ```
+
+`ExMCP.HttpPlug` mounts directly in a Phoenix router and does not require
+PlugCowboy when the application uses Bandit. The standalone
+`ExMCP.Server.Transport.start_http_server/4` launcher uses Cowboy; add
+`{:plug_cowboy, "~> 2.7"}` to your application's dependencies if you call it.
+Without PlugCowboy, that launcher returns `{:error, :cowboy_not_available}`.
 
 ### 2. Create an MCP Handler
 

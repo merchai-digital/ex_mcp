@@ -108,11 +108,22 @@ defmodule ExMCP.Server.Transport do
   Starts an HTTP-based MCP server using Cowboy.
 
   The HTTP transport allows integration with web applications and provides
-  REST-like access to MCP functionality.
+  REST-like access to MCP functionality. This standalone launcher requires
+  `:plug_cowboy` in the host application's dependencies and returns
+  `{:error, :cowboy_not_available}` when it is absent. Embedding
+  `ExMCP.HttpPlug` in an existing HTTP server does not require Cowboy.
   """
   @spec start_http_server(module(), map(), list(), keyword()) ::
           {:ok, pid()} | {:error, term()}
   def start_http_server(module, server_info, _tools, opts) do
+    if Code.ensure_loaded?(Plug.Cowboy) do
+      start_cowboy_http_server(module, server_info, opts)
+    else
+      {:error, :cowboy_not_available}
+    end
+  end
+
+  defp start_cowboy_http_server(module, server_info, opts) do
     port = Keyword.get(opts, :port, 4000)
     host = Keyword.get(opts, :host, "localhost")
     # Preserve the rc.5 server option aliases throughout 1.x, but never enable
@@ -172,49 +183,31 @@ defmodule ExMCP.Server.Transport do
         "(deprecated HTTP+SSE: #{legacy_http_sse})"
     )
 
-    # If a custom ranch_ref is provided, use it for test isolation
-    if ranch_ref do
-      # Use Plug.Cowboy with the custom ref option
-      cowboy_opts = [
-        port: port,
-        ip: parse_host(host),
-        ref: ranch_ref
-      ]
+    cowboy_opts = [port: port, ip: parse_host(host)]
+    cowboy_opts = if ranch_ref, do: Keyword.put(cowboy_opts, :ref, ranch_ref), else: cowboy_opts
 
-      case Plug.Cowboy.http(ExMCP.HttpPlug, plug_opts, cowboy_opts) do
-        {:ok, pid} ->
-          Logger.info("MCP HTTP server started successfully with ref #{inspect(ranch_ref)}")
-          {:ok, pid}
+    # Dynamic module lookup keeps the optional adapter out of consumers' compile-time calls.
+    cowboy = Plug.Cowboy
 
-        {:error, {:already_started, pid}} ->
-          Logger.info("MCP HTTP server already running with ref #{inspect(ranch_ref)}")
-          {:ok, pid}
+    case cowboy.http(ExMCP.HttpPlug, plug_opts, cowboy_opts) do
+      {:ok, pid} ->
+        log_cowboy_start(:started, ranch_ref)
+        {:ok, pid}
 
-        {:error, reason} ->
-          Logger.error("Failed to start MCP HTTP server: #{inspect(reason)}")
-          {:error, reason}
-      end
-    else
-      # Use default Plug.Cowboy approach for production
-      cowboy_opts = [
-        port: port,
-        ip: parse_host(host)
-      ]
+      {:error, {:already_started, pid}} ->
+        log_cowboy_start(:already_running, ranch_ref)
+        {:ok, pid}
 
-      case Plug.Cowboy.http(ExMCP.HttpPlug, plug_opts, cowboy_opts) do
-        {:ok, pid} ->
-          Logger.info("MCP HTTP server started successfully")
-          {:ok, pid}
-
-        {:error, {:already_started, pid}} ->
-          Logger.info("MCP HTTP server already running")
-          {:ok, pid}
-
-        {:error, reason} ->
-          Logger.error("Failed to start MCP HTTP server: #{inspect(reason)}")
-          {:error, reason}
-      end
+      {:error, reason} ->
+        Logger.error("Failed to start MCP HTTP server: #{inspect(reason)}")
+        {:error, reason}
     end
+  end
+
+  defp log_cowboy_start(status, ranch_ref) do
+    detail = if ranch_ref, do: " with ref #{inspect(ranch_ref)}", else: ""
+    verb = if status == :started, do: "started successfully", else: "already running"
+    Logger.info("MCP HTTP server #{verb}#{detail}")
   end
 
   @doc """
@@ -313,7 +306,8 @@ defmodule ExMCP.Server.Transport do
       },
       http: %{
         available: Code.ensure_loaded?(Plug.Cowboy),
-        description: "HTTP transport with REST-like API"
+        description:
+          "Standalone Cowboy HTTP launcher; ExMCP.HttpPlug also mounts in other servers"
       },
       beam: %{
         available: true,

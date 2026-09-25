@@ -130,6 +130,28 @@ defmodule ExMCP.Server.TransportTest do
         :skip
       end
     end
+
+    @tag :requires_http
+    test "start_http_server/4 preserves a custom Ranch reference" do
+      if match?({:module, _}, Code.ensure_loaded(Plug.Cowboy)) do
+        ref = :ex_mcp_optional_cowboy_test
+
+        {:ok, pid} =
+          Transport.start_http_server(TestServer, %{name: "test", version: "1.0.0"}, [],
+            port: 0,
+            ranch_ref: ref
+          )
+
+        on_exit(fn -> Plug.Cowboy.shutdown(pid) end)
+        assert is_pid(pid)
+
+        assert {:ok, ^pid} =
+                 Transport.start_http_server(TestServer, %{name: "test", version: "1.0.0"}, [],
+                   port: 0,
+                   ranch_ref: ref
+                 )
+      end
+    end
   end
 
   describe "server management" do

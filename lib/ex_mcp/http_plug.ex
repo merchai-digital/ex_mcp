@@ -1,7 +1,7 @@
 defmodule ExMCP.HttpPlug do
   @moduledoc """
   HTTP Plug for MCP (Model Context Protocol) requests.
-  Compatible with Phoenix and Cowboy servers.
+  Compatible with Phoenix, Bandit, and Cowboy servers.
 
   This plug provides Streamable HTTP transport for MCP servers, allowing
   integration with standard Elixir web applications. Modern SSE responses are
@@ -26,7 +26,7 @@ defmodule ExMCP.HttpPlug do
 
   ## Usage
 
-      # With Cowboy
+      # With Cowboy (add {:plug_cowboy, "~> 2.7"} to your app's dependencies)
       {:ok, _} = Plug.Cowboy.http(ExMCP.HttpPlug, [
         handler: MyApp.MCPServer,
         server_info: %{name: "my-app", version: "1.0.0"}

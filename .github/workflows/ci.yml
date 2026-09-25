@@ -416,3 +416,36 @@ jobs:
 
     - name: Run dialyzer
       run: mix dialyzer --format github
+
+  bandit-consumer:
+    name: Bandit consumer without Cowboy
+    runs-on: ubuntu-latest
+    env:
+      MIX_BUILD_PATH: ${{ github.workspace }}/.bandit-consumer-build
+      MIX_DEPS_PATH: ${{ github.workspace }}/.bandit-consumer-deps
+    defaults:
+      run:
+        working-directory: dev/fixtures/bandit_consumer
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      with:
+        persist-credentials: false
+
+    - name: Set up Elixir
+      uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1
+      with:
+        otp-version: ${{ env.CI_OTP_VERSION }}
+        elixir-version: ${{ env.CI_ELIXIR_VERSION }}
+
+    - name: Install isolated dependencies
+      run: mix deps.get
+
+    - name: Verify consumer lock is pinned
+      run: git diff --exit-code -- mix.lock
+
+    - name: Test Bandit consumer and absent Cowboy graph
+      run: mix test
+
+    - name: Audit consumer dependencies without exceptions
+      run: mix hex.audit

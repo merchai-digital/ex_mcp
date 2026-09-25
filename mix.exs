@@ -34,13 +34,14 @@ defmodule ExMCP.MixProject do
       # #152, #166, #169), on the position that those encoders expect
       # RFC-valid input and Cowboy/Gun reject CR/LF at their own layer. The
       # advisory metadata is therefore correct and no Cowlib release will
-      # clear it. These exceptions stay for as long as ExMCP requires Cowboy,
-      # backed by: Plug/Cowboy response-header validation; ExMCP does not
+      # clear it. The root dev/test graph still selects Cowboy through Bypass
+      # and standalone transport tests; these exact exceptions apply there,
+      # not to Bandit consumers without Cowboy. They are backed by:
+      # Plug/Cowboy response-header validation; ExMCP does not
       # call cow_cookie:cookie/1; and the ExMCP/Plug/Cowboy server stack does
       # not call cow_link:link/1. Those assumptions are locked by
-      # dependency_advisory_mitigation_test.exs. The exit is to make the HTTP
-      # server dependency optional (Cowboy optional, Bandit supported), which
-      # is a breaking change recorded in the 2.0 roadmap. Keep the
+      # dependency_advisory_mitigation_test.exs. The exit is to keep the HTTP
+      # server dependency optional (Cowboy optional, Bandit supported). Keep the
       # exceptions exact so `mix hex.audit` still fails on every new advisory.
       hex: [
         ignore_advisories: [
@@ -99,7 +100,7 @@ defmodule ExMCP.MixProject do
       {:sobelow, "~> 0.13", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.18", only: :test},
       {:git_hooks, "~> 0.7", only: [:dev], runtime: false},
-      {:plug_cowboy, "~> 2.7"},
+      {:plug_cowboy, "~> 2.7", optional: true},
       {:plug, "~> 1.16"},
       {:fuse, "~> 2.4", optional: true},
       # MCP protocol support
